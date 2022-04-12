@@ -1,0 +1,133 @@
+---
+title: "stat412_quiz1_esrasekerci_2141992"
+author: "Şekerci, E."
+date: '2022-04-03'
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r}
+getwd()
+```
+
+```{r}
+setwd("C:/Users/esrase/Desktop")
+```
+
+```{r}
+df<-read.csv("quiz.data.csv",header=TRUE)
+head(df)
+```
+```{r}
+dplyr::glimpse(df)
+```
+
+```{r}
+colnames(df) <- c("gender", "age", "weight", "family_history_with_overweight", "smoke", "transportation_used", "weight_status")
+df
+```
+```{r}
+lapply(df, unique)
+```
+```{r}
+library(magrittr)
+library(dplyr) 
+library(stringr)
+```
+
+
+```{r}
+df <- df%>%
+   mutate(gender = str_to_lower(gender))
+```
+
+```{r}
+abs_df <- df%>%
+  dplyr::select(where(is.numeric)) %>%
+  abs()
+df[,2:3] <-abs_df[,1:2]
+```
+
+```{r}
+df <- df %>% 
+  mutate(across(where(is.character), str_trim))
+df <-as.data.frame(apply(df,2,function(x)gsub('_', ' ',x)))
+```
+
+```{r}
+df$weight=str_trim(df$weight, side="left")
+```
+
+```{r}
+df <- df %>% mutate(smoke = str_replace(smoke,"Y","yes"),
+                    transportation_used = str_to_lower(transportation_used),
+                    transportation_used = str_replace(transportation_used,"åÿ","s"))
+df%>%count(transportation_used)
+```
+
+```{r}
+df <- df %>% mutate(weight_status = str_replace(weight_status,"Normal Weight","normal weight"),
+                    weight_status = str_replace(weight_status,"Overweight Level I","overweight level I"),
+                    weight_status = str_replace(weight_status,"Overweight Level II","overweight level II"),
+                    weight_status = str_replace(weight_status,"Obesity Type I","obesity type I"))
+```
+
+```{r}
+lapply(df, unique)
+```
+
+```{r}
+df <- df[!(is.na(df$smoke) | df$smoke=="" | is.na(df$family_history_with_overweight) | df$family_history_with_overweight==""|is.na(df$transportation_used) | df$transportation_used=="" | is.na(df$weight_status) | df$weight_status==""),]
+```
+
+```{r}
+str(df)
+```
+
+```{r}
+df$age<-as.integer(df$age)
+df$weight<-as.integer(df$weight)
+```
+
+```{r}
+df$gender<-as.factor(df$gender)
+recode_factor(df$gender, `male` = "0", `female` = "1")
+```
+
+```{r}
+df$family_history_with_overweight<-as.factor(df$family_history_with_overweight)
+recode_factor(df$family_history_with_overweight, `no` = "0", `yes` = "1")
+```
+
+```{r}
+df$smoke<-as.factor(df$smoke)
+recode_factor(df$smoke, `no` = "0", `yes` = "1")
+```
+
+```{r}
+df$transportation_used<-as.factor(df$transportation_used)
+recode_factor(df$transportation_used, `walking` = "0", `motorbike` = "1", `public transportation` = "2", `automobile` = "3")
+```
+
+```{r}
+df$weight_status<-as.factor(df$weight_status)
+recode_factor(df$weight_status, `normal weight` = "0", `overweight level I` = "1", `overweight level II` = "2", `obesity type I` = "3")
+```
+
+```{r}
+library(purrr)
+df %>% purrr::map(levels)
+```
+
+```{r}
+summary(df)
+```
+
+```{r}
+row.names(df) <- NULL
+```
+
+```{r}
+df
+```

@@ -1,0 +1,243 @@
+---
+title: "stat412_assignment1_esrasekerci_2141992"
+author: "Şekerci, E."
+date: '2022-04-11'
+output:
+  pdf_document: default
+  html_document: default
+---
+
+## Initial Settings
+
+```{r}
+# Loading Packages
+library(tidyverse)
+library(pastecs)
+library(purrr)
+library(faraway)
+library(ggplot2)
+library(gridExtra)
+```
+
+```{r}
+# Loading our data
+df <- read.csv("C:/Users/esrase/Desktop/wage.txt", sep="", stringsAsFactors=TRUE)
+```
+
+##Exploratory Analysis
+
+First, let's take a look at our data that we opened in another spreadsheet using the `view()` function.
+```{r}
+#view(df)
+```
+
+```{r}
+head(df)
+```
+Now, we should check whether there is a mistake or not in our data structure by looking at the class of each variables.
+
+```{r}
+dplyr::glimpse(df)
+```
+All variables are numeric variables, however we need to fix the classes of some variables according to the given data description.
+
+```{r}
+dim(df)
+```
+Our data frame consist of 534 observations(number of rows) and 11 variables(number of columns).
+
+```{r}
+sum(is.na(df))
+```
+No missing values detected in the data.
+
+##Data Pre-processing
+
+```{r}
+##change the class of type as factor
+names <- c('south', 'sex', 'union','race', 'occup', 'sector', 'marr')
+df[,names] <- lapply(df[,names] , factor)
+str(df)
+```
+
+Now, let's focus on recoding categorical variables.
+```{r}
+df <- df %>% mutate(south = recode(south, 
+  "0" = "Person lives elsewhere",
+  "1" = "Person lives in South"))
+```
+
+```{r}
+df <- df %>% mutate(sex = recode(sex, 
+  "0" = "Male",
+  "1" = "Female"))
+```
+
+```{r}
+df <- df %>% mutate(union = recode(union, 
+  "0" = "Not union member",
+  "1" = "Union member"))
+```
+
+```{r}
+df <- df %>% mutate(race = recode(race, 
+  "1" = "Other",
+  "2" = "Hispanic",
+  "3" = "White"))
+```
+
+```{r}
+df <- df %>% mutate(occup = recode(occup, 
+  "1" = "Management",
+  "2" = "Sales",
+  "3" = "Clerical",
+  "4" = "Service",
+  "5" = "Professional",
+  "6" = "Other"))
+```
+
+```{r}
+df <- df %>% mutate(sector = recode(sector, 
+  "0" = "Other",
+  "1" = "Manufacturing",
+  "2" = "Construction"))
+```
+
+```{r}
+df <- df %>% mutate(marr = recode(marr, 
+  "0" = "Unmarried",
+  "1" = "Married"))
+```
+
+After re-coding the categorical data into numeric variables, we can simply look at their level with the following function.
+
+```{r}
+df %>% purrr::map(levels)
+```
+
+We can also use `count()` function to see how many observations a variable has in its each level(the occup column examined in the following line).
+```{r}
+df %>% count(occup)
+```
+
+Below, we rearrange the column names.
+```{r}
+colnames(df) <- c("EDUCATION", "SOUTH", "SEX", "EXPERIENCE", "UNION", "WAGE", "AGE", "RACE", "OCCUPATION", "SECTOR", "MARITAL.STATUS")
+head(df)
+```
+In order to reorder each row by descending we take into account the WAGE(dollars per hour) variable.
+
+```{r}
+df <- arrange(df, desc(WAGE))
+head(df)
+```
+##Non-graphical analysis
+
+```{r}
+summary(df)
+```
+```{r}
+stat.desc(df)
+```
+```{r}
+df1 <-df[,-c(2,3,5,8,9,10,11)]
+corr <- cor(df1)
+corr
+```
+The output of the correlation matrix is used to interpret the relationship between variables. For instance, in terms of our data we observe that age has a high positive relation with the experience level. On the other hand, we might say that the relationship between the change in education level and wage is more than the relationship between experience and wage.
+
+
+**Q1.** What is the average wage (dollars per hour) for male and female?
+
+```{r}
+aggregate(df$WAGE ~ SEX, data = df, mean)
+```
+
+**Q2.** What is the age distribution of people by occupation categories?
+
+```{r}
+df <- df %>% 
+  mutate(
+    # Create categories
+    AGE.GROUP = dplyr::case_when(
+      AGE > 11 & AGE <= 24 ~ "18-24",
+      AGE > 24 & AGE <= 34 ~ "25-34",
+      AGE > 34 & AGE <= 44 ~ "35-44",
+      AGE > 44 & AGE <= 54 ~ "35-54",
+      AGE > 54             ~ "> 54"
+    ),
+    # Convert to factor
+    AGE.GROUP = factor(
+      AGE.GROUP,
+      level = c("18-24","25-34","35-44","35-54","> 54")
+    )
+  )
+```
+
+```{r}
+tab<-table(df[,c("AGE.GROUP","OCCUPATION")])
+tab
+```
+
+The age group with the highest number of managerial positions is 35-44. In addition to the frequency distribution for each age group, learning about the relative frequencies actually gives us more insight into our data.
+
+##Categorical Variables
+
+
+**Q3 What is the distribution of wage per hours by sex?**
+
+```{r}
+p <- ggplot(df, aes(x=SEX, y=WAGE, fill=SEX)) + geom_violin(trim=FALSE)  + geom_boxplot(width=0.2,fill="beige") + ggtitle("wage distribution by sex")
+p
+```
+Wider sections of the violin plot represented for female workers has a higher probability in the population than the male workers have, which means while the majority of female workers earn $5 an hour, the wage distribution for male workers is wider. In addition, more outlier values are observed for female workers.
+
+**Q4 What is the occupational distribution by race?**
+
+```{r}
+df %>% group_by(RACE, OCCUPATION) %>% summarise(n = n()) %>% ggplot(aes(OCCUPATION, 
+    n, fill = RACE)) + geom_bar(position = "dodge", stat = "identity") + theme(axis.ticks.length = unit(0.1, 
+    "cm")) + coord_flip() + labs(x = NULL, y = NULL) + ggtitle("occupational distribution by race")
+```
+For each ethnic group, the total proportion of workers employed in sales area is small. Since the distribution percentages of the races in the data are different, it is not possible to obtain much information with this graph.
+
+**Q5 What is the distribution chart of age groups by frequency**
+
+```{r}
+tab<-data.frame(table(df$AGE.GROUP))
+tab
+```
+
+```{r}
+ggplot(tab,aes(x=Var1,y=Freq,fill=Var1))+geom_bar(stat="identity")+labs(title="distribution chart of age groups by frequency",y="FREQUENCY",x="AGE.GROUP")+
+  theme(legend.position="none")+geom_text(aes(label=Freq))
+```
+The majority of the population in our data is between the ages of 25-34. Employees older than 54 years old have the least place in our population data.
+
+##Numerical Variables
+
+**Q6 What is the association between wage and number of year of experience by being a union member?**
+
+```{r}
+set.seed(100)
+#df1 = df[sample(1:nrow(df),200),]
+ggplot(df,aes(x=EXPERIENCE,y=WAGE,col=UNION))+geom_point()+labs(title="association between wage and experience by being a union member")
+```
+A positive relationship is observed between experience and salary, but being a union member does not reveal much on this graph. There is one remarkable observation in the upper left corner.
+
+**Q7 What is the association between wage and education according to the sector?**
+
+```{r}
+ggplot(df,aes(x=EDUCATION,y=WAGE))+geom_point(col="purple")+labs(title = "The relationship between wage and education according to the sector")+geom_smooth()+facet_wrap(.~SECTOR)
+```
+
+Here the relationship between education and salary for different sectors is shown. The first two graphs show positive correlations for education level and salary in similar ways. However, graph for construction sector is fluctuating.
+
+**Q8 How does the wage affected by the employees' sex and marital status?**
+
+```{r}
+ggplot(df, aes(x = AGE, y = WAGE, color = SEX)) +
+  geom_point() +
+  facet_wrap(~MARITAL.STATUS)
+```
+Both graphs show similar patterns.

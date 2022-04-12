@@ -1,0 +1,50 @@
+﻿GENDER,AGE,Weight//,??family_history_with_overweight,SMOKE,*MTRANS,NObeyesdad
+Female,21,64,yes,no,Public_Transportation,Normal_Weight
+Female,21,56,yes,yes,Public_Transportation,Normal_Weight
+Male,23,77,yes,no,Public_Transportation,Normal_Weight
+Male,27,87,no,no,Walking,Overweight_Level_I
+Male,22,89,,,,
+Male,29,53,no,no,Automobile,Normal_Weight
+Female,23,55, yes,no,Motorbike,Normal_Weight
+Male,22,53,no,no,Public transportation,Normal_Weight
+Male,24,64,yes,no,public tranşportation,Normal_Weight
+Male,22,68,yes,no,public tranşportation,Normal_Weight
+Male,26,105,yes,no,Public transportation,Obesity_Type_I
+Female,21,80,yes,no,Public transportation,Overweight_Level_II
+Male,22,56,,,,
+Male,41,99,no,no,Automobile,Obesity_Type_I
+Male,-40,60,yes,no,Public_Transportation,Normal_Weight
+Female,22,66, yes,no,Public_Transportation,Normal_Weight
+Male,27,102,yes,no,Public_Transportation,Overweight_Level_II
+Female,29,78,no,no,Automobile,Obesity_Type_I
+female,30,82,yes,yes,Automobile,Overweight_Level_II
+Female,23,70,yes,no,Public_Transportation,Overweight_Level_I
+Male,22,80,yes,no,Walking,Overweight_Level_II
+Female,52,87,yes,yes,Automobile,Obesity_Type_I
+Female,22,60,yes,no,Automobile,Normal_Weight
+Female,22,82, yes,no,Public_Transportation,Obesity_Type_I
+Male,21,68,yes,no,Public_Transportation,Normal_Weight
+Male,-20,50,yes,yes,Public_Transportation,Normal_Weight
+Male,21,65,yes,no, Walking,Normal_Weight
+Female,23,52,no,no,Automobile,Normal_Weight
+Male,19,76,yes,no,Public_Transportation,Normal_Weight
+Male,23,70,no,Y,Walking,Normal_Weight
+Male,29,83,no,no,Motorbike,Overweight_Level_I
+Female,31,68,yes,no,Public_Transportation,Overweight_Level_II
+Female,24,76,no,no,Walking,Normal_Weight
+Male,39,90,no,no,Public_Transportation,Overweight_Level_II
+Male,22,62,no,Y,Public_Transportation,Normal_Weight
+Female,21,65,yes,no,Public_Transportation,Overweight_Level_II
+Female,22,49,no,no, Walking,Normal_Weight
+Female,21,48,no,no,Public_Transportation,Normal_Weight
+Male,23,67,yes,no,Public_Transportation,Normal_Weight
+Female,21,88,yes,no,Public_Transportation,Overweight_Level_II
+Female,21,75,yes,no,Public_Transportation,Overweight_Level_I
+Male,23,60,,,,
+Female,21,64,,,,
+Male,21,62,yes,yes,Public_Transportation,Normal_Weight
+Male,21,80,no,no,Public_Transportation,Normal_Weight
+Female,21,65,yes,no,Public_Transportation,Overweight_Level_II
+MALE,21,72,yes,no,Public_Transportation,normal_weight
+MALE,21,72,yes,no,Public_Transportation,normal_weight
+Female,20,60,yes,no,Walking,normal_weight
