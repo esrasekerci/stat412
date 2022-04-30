@@ -1,0 +1,360 @@
+---
+title: "stat412_quiz2_esrasekerci_2141992"
+author: "E. ŞEKERCİ"
+date: "4/20/2022"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+## Data Description
+
+-   Identification Number : 1-97
+
+-   PSA level : Logarithm of Serum prostate-specific antigen level (mg/ml)
+
+-   Cancer Volume : Estimate of prostate cancer volume (cc)
+
+-   Weight : Prostate weight (gm)
+
+-   Age : Age of patient (years)
+
+-   Benign prostatic hyperplasia : Amount of benign prostatic hyperlesia (cm²)
+
+-   Seminal vesicle invasion : Presence or absence of seminal vesicle invasion:1 if yes;0 otherwise
+
+-   Capsular penetration : Degree of capsular penetration (cm)
+
+-   Gleason score : Pathologically determined grade of disease using total score of two patterns (summed scores were either 6, 7, or with higher scores indicating worse prognosis)
+
+
+## Initial Settings
+
+
+```{r}
+# Loading Package
+library(olsrr)
+library(tidyverse)
+library(data.table)
+library(ggplot2)
+library(gridExtra)
+library(corrplot)
+library(PerformanceAnalytics)
+library(GGally)
+library(faraway)
+```
+
+```{r}
+# Loading our data
+prostate <- read.csv("C:/Users/esrase/Desktop/prostate.txt", sep="")
+```
+
+## Exploratory Analysis
+
+```{r}
+#Preview prostate data
+head(prostate, 3)
+```
+
+```{r}
+sum(is.na(prostate))
+```
+
+No missing values detected in the data.
+
+```{r}
+str(prostate)
+```
+
+In prostate data, there exist 97 observations(number of rows) and 9 variables(number of columns). From here, we can notice that some variables are not treated correctly, so we need to fix the classes of those variables according to the given data description.
+
+
+```{r}
+par(mfrow=c(3,3), mar=c(4,4,2,0.5))
+for (j in 1:ncol(prostate)) {
+  hist(prostate[,j], xlab=colnames(prostate)[j],
+       main=paste("Histogram of", colnames(prostate)[j]),
+       col="lightblue", breaks=20)
+}
+```
+
+##Data Pre-processing
+
+```{r}
+prostate$svi <- as.factor(prostate$svi)
+prostate$g.score <- as.factor(prostate$g.score)
+```
+
+```{r}
+prostate %>% count(g.score)
+```
+
+I decided to remove the entire **id** column by simply setting it to NULL. We can already check the patient's ID based on the row name which is the same as the id column.
+
+
+```{r}
+prostate$id <- NULL
+head(prostate, 3)
+```
+
+```{r}
+str(prostate)
+```
+
+No errors are observed anymore in variable classes. Now, we can move on to the computation of descriptive statistics.
+
+```{r}
+summary(prostate)
+```
+
+By looking at descriptive statistics, we can learn about the mean, median, min, max, and quartiles of numerical variables. For factor variables, the number of observations in each group is returned.
+
+```{r}
+pairs(prostate)
+```
+There is absolute heteroscedasticity problem with the errors, observed from pair-wise scatter plots of explanatory variables.
+
+
+**a) Find the best model without interaction terms, interpret the results**
+
+Let's start by fitting a linear model so we can focus on more details.
+
+```{r}
+model <- lm(psa~., data=prostate)
+summary(model)
+```
+At 5%, t critical value with degrees of freedom 88 is +/- 1.987, so we may conclude that weight, age, and cp do not have statistically significant linear association with psa while cancer, bph, sviYes have significant contribution to the model. It also seems that while g.score8 reaches "significance", g.score7 does not,  it should be noted that this is very common for categorical variables to happen.
+
+We can say that the model is significant on the average. (**pvalue: \< 2.2e16**)
+
+Looking at Adjusted R Squared Values, the 91.9% of the variability of psa can be explained by the predictors.
+
+
+```{r}
+plot(model)
+```
+
+##Model Selection with Transformed Variables
+
+```{r}
+model <- lm(psa~., prostate)
+forward.model <- ols_step_forward_p(model, penter = 0.1)
+forward.model
+```
+
+```{r}
+forward.model$model
+```
+
+```{r}
+backward.model <- ols_step_backward_p(model, prem = 0.1)
+backward.model
+```
+
+```{r}
+backward.model$model
+```
+
+```{r}
+stepwise.model <- ols_step_both_p(model, pent=0.05, prem=0.1)
+stepwise.model
+```
+
+```{r}
+stepwise.model$model
+```
+
+The best model we picked according to above algorithms:
+
+```{r}
+model <- lm(psa ~ cancer+bph+svi+g.score, data = prostate)
+summary(model)
+```
+
+The estimated regression function is $\hat{y} = 1.388 + 0.062cancer + 0.093bph + 0.696svi1 + 0.260g.score7 + 0.705g.core8 $
+
+Now, looking at Adjusted R Squared Values, the 56.19% of the variability of psa can be explained by the predictors.
+
+
+```{r}
+plot(model)
+```
+
+
+```{r}
+ti <- rstudent(model)
+plot(density(ti))
+```
+
+```{r}
+shapiro.test(ti)
+```
+
+From the plot we see that there is a slight problem with normality because the points are not perfectly aligned along the normal line. By conducting
+a Shapiro-Wilk test we can detect all departures from normality. Since the p-value is greater than 0.05, we cannot reject the null hypothesis (the
+residuals are normally distributed). As a result, it should be considered that the residuals are normally distributed as there are no major distribution
+from the normality line.
+
+
+
+**b) Is there any multicollinearity problem in the best model ? If yes, please handle it**
+
+In the code below, the `cor()` function is applied to calculate the correlation of coefficient matrix and the scatter plot between the predictors is drawn.
+
+```{r}
+df <- prostate[,-c(6,8)]
+df.corr <- cor(df)
+corrplot.mixed(df.corr)
+```
+
+In this plot, the dark blue circle tells us that there is a high and positive correlation between **psa** and **id** variables. 
+
+```{r}
+chart.Correlation(df)
+```
+
+The plot also shows that the model has several predictors having large correlation between each other. This might indicate that the linear regression model for prostate data suffers from the multicollinearity.
+
+Now, let us look the variance inflation factor of the variable for the model2(the one without id column).
+
+```{r}
+vif(model)
+```
+
+There is no multicollinearity problem in the multiple linear regression model since the vif values of the covariates are less than 10. Hence, it can be concluded that the MLR model suffers from the confounding variable.
+
+
+**c) Is there any confounding factor in the best model ? If yes, please write which variable is confounding variable. Interpret your findings.**
+
+Now, let us decide the confounding factor.
+
+Our variable of interest is **psa**. Now, let us examine the relationship between psa variable and covariates separately.
+
+
+```{r}
+p1 <- ggplot(prostate, aes(x=svi, y=psa, fill=svi))+geom_boxplot()
+p2 <- ggplot(prostate, aes(x=g.score, y=psa, fill=g.score))+geom_boxplot()
+
+grid.arrange(p1, p2, nrow=1)
+```
+
+As it is seen from the all boxplot for categorical variable and dependent variable that the levels of the categorical variable have different median value of **psa**. These indicates that categorical variables **may** have an impact on the heart rate.
+
+
+
+```{r}
+m.cancer <- lm(psa ~ cancer, prostate)
+m.cancer$coefficient[2]
+summary(m.cancer)
+```
+
+```{r}
+m.bph <- lm(psa ~ bph, prostate)
+m.bph$coefficient[2]
+summary(m.bph)
+```
+
+```{r}
+m.svi<-lm(psa ~ svi, prostate)
+m.svi$coefficient[2]
+summary(m.svi)
+```
+```{r}
+m.gs<-lm(psa ~ g.score, prostate)
+m.gs$coefficient[2:3]
+summary(m.gs)
+```
+
+When we compare the outputs from SLR and MLR, we see that there is a significant change for the coefficient of cancer. Let us count the this change in terms of percentage.
+
+```{r}
+full.model <- lm(psa~. , prostate)
+model$coefficients[2:6]
+```
+
+
+```{r}
+Percentage_Change = (m.cancer$coefficients[2] - model$coefficients[2])/m.cancer$coefficients[2]*100
+Percentage_Change
+```
+
+```{r}
+Percentage_Change = (m.bph$coefficients[2] - model$coefficients[3])/m.bph$coefficients[2]*100
+Percentage_Change
+```
+
+```{r}
+Percentage_Change = (m.svi$coefficients[2] - model$coefficients[4])/m.svi$coefficients[2]*100
+Percentage_Change
+```
+
+```{r}
+Percentage_Change = (m.gs$coefficients[2] - model$coefficients[5])/m.gs$coefficients[2]*100
+Percentage_Change
+```
+
+```{r}
+Percentage_Change = (m.gs$coefficients[3] - model$coefficients[6])/m.gs$coefficients[3]*100
+Percentage_Change
+```
+
+Since all the percentage changes for those variables are greater than 10%, we say that the MLR model may suffer from multicoLlinearity problem or confounding variable. We found out that here is no multicollinearity problem in the multiple linear regression model since the vif values of the covariates are less than 10. Therefore, it can be concluded that the MLR model suffers from the confounding variable.
+
+```{r}
+p3 <- ggplot(prostate, aes(x=svi, y=cancer, fill=svi)) + geom_boxplot()
+p4 <- ggplot(prostate, aes(x=g.score, y=cancer, fill=g.score)) + geom_boxplot()
+
+grid.arrange(p3, p4, nrow=1)
+```
+
+The median values of cancer seems to be not close to each other. This indicates that there may be association between cancer and svi. We can say that svi variable is may be **confounding variable**.
+
+The median values according to g.score looks also far away from each other. This indicates that there may be association between cancer and g.score. Then, we can say that g.score variable may be **confounding variable**.
+
+
+**d) Find the best model with interaction terms. Compare the results with part a result.**
+
+```{r}
+summary(model)
+```
+```{r}
+p5 <-ggplot(prostate, aes(x=cancer,y=psa))+geom_point(col="darkred")
+p6 <-ggplot(prostate, aes(x=bph,y=psa))+geom_point(col="darkred")
+p7 <-ggplot(prostate, aes(x=svi,y=psa))+geom_point(col="darkred")
+p8 <-ggplot(prostate, aes(x=g.score,y=psa))+geom_point(col="darkred")
+
+grid.arrange(p5, p6, p7, p8, nrow=2)
+```
+The scatter plot shows there is positive relationship between psa and cancer variables because as the value of cancer increases, the value of psa also rises up.
+
+```{r}
+cor(prostate$psa, prostate$cancer)
+```
+
+The correlation coefficient shows that there is positive correlation between psa and cancer.
+
+```{r}
+fit <- lm(psa ~ +bph+svi+g.score, prostate)
+summary(fit)
+```
+Adjusted R-squared is lower compared to the best model we found.
+
+Now let us add interaction term into the model,
+
+```{r}
+fit1 <- lm(psa ~ cancer+bph+svi*g.score, prostate)
+summary(fit1)
+```
+```{r}
+fit2 <- lm(psa ~ cancer*svi+bph+g.score, prostate)
+summary(fit2)
+```
+
+```{r}
+fit3 <- lm(psa ~ cancer*svi+bph*svi+g.score, prostate)
+summary(fit3)
+```
+
+Adjusted R-squared is higher compared to the best model. To conclue, adding interaction effect improve the predictivity of the model because R^2 adjusted increases. That is, 59% of the variability on response is explained by the predictors and their interactions.
+
+
