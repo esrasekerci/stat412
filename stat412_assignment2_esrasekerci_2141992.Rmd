@@ -1,0 +1,565 @@
+---
+title: "Stat412-Assignment2"
+author: "E. ŞEKERCİ"
+date: "5/16/2022"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+# QUESTION 1
+
+## Data Description
+
+1 nat Nation name 1-30
+2 birth.r Birth Rate in 1953-1954
+3 inc Per Capita Income
+4 farm Proportion of population on farm
+5 mort Infant Mortality Rate in 1953-1954
+
+## Initial Settings
+
+```{r}
+# Loading Package
+library(readr)
+library(DAAG)
+library(ggplot2)
+library(tidyverse)
+library(pastecs)
+library(caret)
+library(mice)
+library(VIM)
+library(olsrr)
+library(rcompanion)
+library(moments)
+```
+
+```{r}
+# Loading our data
+birthrate <- read_table("birthrate.txt", col_names = FALSE)
+# View first ten rows of data
+head(birthrate,10)
+```
+
+## Exploratory Analysis
+
+First let us rearrange the column names.
+
+```{r}
+colnames(birthrate) <- c("nation", "birth.rate", "per.capita", "population.on.farm", "infant.mortality")
+head(birthrate)
+```
+
+Let's analyze the numeric variables separately by plotting their density graphs.
+
+```{r}
+birthrate %>%
+  keep(is.numeric) %>% 
+  gather() %>%
+  ggplot(aes(value)) +
+    facet_wrap(~ key, scales = "free") +
+    geom_density()   
+```
+
+```{r}
+# Check on data structure by looking at the class of each variables
+dplyr::glimpse(birthrate)
+```
+
+There seems no mistake with the classes of the variables.
+
+```{r}
+dim(birthrate)
+```
+
+With the above function we find out that our data frame consist of 30 observations(number of rows) and 5 variables(number of columns).
+
+```{r}
+sum(is.na(birthrate))
+```
+
+No missing values detected in the data. 
+
+```{r}
+# Calculating the descriptive statistics
+df <- birthrate[,-c(1)]
+summary(df)
+```
+
+```{r}
+cor(df)
+```
+
+Correlation matrix shows that infant mortality rate has a negative relation with per capita income. Furthermore, the relationship between the proportion of the population on farm has a greater relationship with infant mortality rate than birth rate.
+
+```{r}
+stat.desc(df)
+```
+
+## Applying 5-fold Cross Validation
+
+```{r}
+# Setting seed to generate a reproducible random sampling
+set.seed(123) 
+# Defining training control as cross-validation and value of K equal to 5
+train_control <- trainControl(method = "cv",number = 5)
+```
+
+```{r}
+# Training the model by assigning birth.rate column as target variable and rest other column as independent variable
+fit <- train(birth.rate ~., data = df, method = "lm",trControl = train_control)
+# Printing model performance metrics along with other details
+summary(fit)
+```
+The estimated regression function is $\hat{y} = 5.554 + 0.0066per.capita + 9.105population.onfarm + 0.243infant.mortality$ 
+
+At 5%, t critical value with degrees of freedom 26 is +/- 2.064, so we may conclude that birth.rate, per.capita and population.onfarm do not have statistically significant linear association with y (their t statistics values are smaller than t critical value) while infant.mortality significant contribution to the model.
+
+```{r}
+model <- lm(birth.rate~., df)
+ti <- rstudent(model)
+qqnorm(ti)
+qqline(ti, col = "steelblue", lwd = 1.5)
+```
+```{r}
+shapiro.test(ti)
+```
+
+From the plot we see that there is a slight problem with normality because the points are not perfectly aligned along the normal line. By conducting
+a Shapiro-Wilk test we can detect all departures from normality. Since the p-value is greater than 0.05, we cannot reject the null hypothesis (the
+residuals are normally distributed). As a result, it should be considered that the residuals are normally distributed as there are no major distribution
+from the normality line.
+
+```{r}
+print(fit)
+```
+
+I guess I do not understand this question clearly. The question only states to implement 5-fold Cross Validation(no repeated or anything), but it also asks to calculate the MSE for *each iteration*. There is only one model applied(one MSE), no other model to evaluate/assess the results and select the best one.
+
+Did I need to split row numbers randomly into 5 groups and choose one of them as a validation and the remainders as the training set for 5 times?
+
+```{r}
+set.seed(123)
+rand<- sample(1:30)%%5 + 1
+(1:30)[rand == 1]
+(1:30)[rand == 2]
+(1:30)[rand == 3]
+(1:30)[rand == 4]
+(1:30)[rand == 5]
+```
+
+Now, I read the hint. Then after a quick research, I confront the description of k-fold cross validation. I believe it is just the working mechanism of this method. From the recitation note 7:
+
+"Following are the complete working procedure of this method:
+
+**1.** Split the data set into K subsets randomly
+
+**2.** Use K-1 subsets for training the model
+
+**3.** Test the model against that one subset that was left in the previous step
+
+**4.** Repeat the above steps for K times i.e., until the model is not trained and tested on all subsets
+
+**5.** Generate overall prediction error by taking the average of prediction errors in every case"
+
+
+Let's evaluate our findings.
+
+```{r}
+print(fit)
+```
+
+We know that $R^2$ prediction gives some indication of the predictive capability of the regression model, therefore we expect this model to explain 55.63% of the variability in the predicting new observations. Root Mean Squared Error(RMSE) is the square root of Mean Squared Error(MSE), it measures the standard deviation of the residuals. To conclude, while selecting the best fit model, we search for the one with the highest $R^2$ and the lowest test sample RMSE.
+
+
+
+# QUESTION 2
+
+## Data Description
+
+1 - Row number (you can just ignore this) 
+2 - State Code 
+3 - Country Code 
+4- Expenditure per person (measured in $) (response)
+5 - Wealth per person (measures richness only related to real estate property values)
+6 – Total population 
+7 - Percent intergovernmental (percentage of revenue (government income) that comes 
+from state and federal grants or subsidies (support))
+8 - Density (=Population/Area)
+9 - Mean Income per person 
+10 - id # (for matching) 
+11 – Population growth rate 
+Missing values are denoted with NA.
+
+## Initial Settings
+
+```{r}
+# Loading our data
+NY <- read.table("C:/Users/esrase/Desktop/NY.txt", quote="\"", comment.char="")
+# Preview the NY data
+head(NY, 10)
+```
+
+## Exploratory Analysis
+
+```{r}
+# Drop the 1st column that is just the row numbers
+NY$V1 <- NULL
+```
+
+```{r}
+# Rewrite the column names
+colnames(NY) <- c("state.code", "country.code", "expenditure", "wealth", "population", "revenue", "density", "income", "id", "growth.rate")
+```
+
+```{r}
+# Looking at the class of each variables then fix the wrong ones according to the given data description
+str(NY)
+```
+
+```{r}
+NY <- NY %>% mutate(revenue = as.numeric(revenue))
+head(NY)
+```
+No errors are observed anymore in variable classes. Now, we can move on to the computation of descriptive statistics.
+
+```{r}
+par(mfrow=c(3,4), mar=c(3,3,2,0.4))
+for (j in 1:ncol(NY)) {
+  hist(NY[,j], xlab=colnames(NY)[j],
+       main=paste("Histogram of", colnames(NY)[j]),
+       col="lightblue", breaks=20)
+}
+```
+
+```{r}
+#outputs are too long, that's why I set the below functions as comment
+
+NY %>% count(state.code) # Whole rows are the same, there is no meaning to keep this column
+#NY %>% count(country.code) # Since we do not know the countries to which the numerical values correspond, this column has no meaning for us either
+#NY %>% count(id) # This one is unique (914 observation), however this column is not give us any additional information
+```
+```{r}
+NY$state.code <- NULL
+NY$country.code <- NULL
+NY$id <- NULL
+```
+
+```{r}
+dim(NY)
+```
+
+There are 7 variables(columns) left and we still have 914 samples(rows).
+
+```{r}
+summary(NY)
+```
+
+Based on the descriptive statistics, we can find out the details of column contains missing values. *wealth*, *revenue*, *income* contain the missing values. The number of missing cases for these variables are 9, 3 and 15, respectively. Now, Let's focus on dealing with these missing values.
+
+```{r}
+sum(is.na(NY))
+```
+
+```{r}
+colSums(is.na(NY))
+```
+
+```{r}
+NY %>% summarize_all(funs(sum(is.na(.)) / length(.)))
+```
+Missing observations(all are numeric, but not normally distributed) seem completely at random (MCAR) and to cover a very small percentage of the data. For this data set I was tend to use the Pairwise Deletion which keeps as many cases as possible for each analysis, uses all information possible with each analysis. However, with the usage of Pairwise Deletion, sample size will vary for each parameter estimation and in the recitation notes it is emphasized that "Pairwise deletion only applies to numerical values that follow a normal distribution approximately". To gain more insights let's re-examine the data with mice and VIM packages.
+
+```{r}
+pMiss <- function(x){sum(is.na(x))/length(x)*100}
+apply(NY,2,pMiss)
+apply(NY,1,pMiss)
+```
+
+```{r}
+NY_miss = aggr(NY, col=mdc(1:2), numbers=TRUE, sortVars=TRUE, labels=names(NY), cex.axis=.7, gap=3, ylab=c("Proportion of missingness","Missingness Pattern"))
+```
+
+As we discussed in the lecture, a generally safe maximum threshold is 5% of the total for large data sets. We should probably exclude that sample or feature, if the missing data for a particular sample or feature is more than 5%. In our case, we see that *income* takes the first place with the most missing observations(6.45%).
+
+```{r}
+set.seed(123)
+mice_imputes = mice(NY, m=5, maxit = 0)
+```
+
+```{r}
+mice_imputes$method
+```
+
+Since all the variables are numeric, the package used pmm(the predictive mean matching) for all features. 
+
+```{r}
+xyplot(mice_imputes, income ~ wealth+revenue, pch = 20, cex = 1.4)
+```
+
+```{r}
+#densityplot(tempData)
+```
+After dealing with missing value with mice library and creating a new mice_imputed data set, now we can compare the descriptive statistics of original data set and the imputed one.
+
+```{r}
+summary(NY)
+```
+
+```{r}
+Imputed_data = complete(mice_imputes,5)
+summary(Imputed_data)
+```
+
+There exists a slight difference between them. Let's move on part c and check whether our data needs transformation or not. 
+
+```{r}
+head(Imputed_data)
+```
+
+```{r}
+center_scale <- function(x) {
+    scale(x, scale = FALSE)
+  }
+center_scale(Imputed_data)
+```
+
+```{r}
+ny.df <- as.data.frame(scale(Imputed_data))
+head(ny.df)
+```
+```{r}
+minMax <- function(x) {
+  (x - min(x)) / (max(x) - min(x))
+}
+ 
+#normalize data using custom function
+ny.df <- as.data.frame(lapply(ny.df, minMax))
+head(ny.df)
+```
+
+```{r}
+summary(ny.df)
+```
+
+```{r}
+par(mfrow=c(3,3), mar=c(3,3,3,0.6))
+for (j in 1:ncol(ny.df)) {
+  hist(ny.df[,j], xlab=colnames(NY)[j],
+       main=paste("Histogram of", colnames(ny.df)[j]),
+       col="orange", breaks=50)
+}
+```
+
+```{r}
+lshap <- lapply(ny.df, shapiro.test)
+lshap
+```
+```{r}
+skewness(ny.df$expenditure)
+skewness(ny.df$wealth)
+skewness(ny.df$population)
+skewness(ny.df$revenue)
+skewness(ny.df$income)
+skewness(ny.df$growth.rate)
+```
+
+Our variables are right skewed we need to transform them.(Tukey’s Ladder of Powers)
+
+```{r}
+#ny.df$expenditure<-transformTukey(ny.df$expenditure,plotit=FALSE)
+#ny.df$wealth<-transformTukey(ny.df$wealth,plotit=FALSE)
+#ny.df$population<-transformTukey(ny.df$population,plotit=FALSE)
+#ny.df$revenue<-transformTukey(ny.df$revenue,plotit=FALSE)
+#ny.df$income<-transformTukey(ny.df$income,plotit=FALSE)
+#ny.df$growth.rate<-transformTukey(ny.df$growth.rate,plotit=FALSE)
+```
+
+```{r}
+skewness(ny.df$expenditure)
+skewness(ny.df$wealth)
+skewness(ny.df$population)
+skewness(ny.df$revenue)
+skewness(ny.df$income)
+skewness(ny.df$growth.rate)
+```
+```{r}
+par(mfrow=c(3,3), mar=c(3,3,3,0.6))
+for (j in 1:ncol(ny.df)) {
+  hist(ny.df[,j], xlab=colnames(NY)[j],
+       main=paste("Histogram of", colnames(ny.df)[j]),
+       col="purple", breaks=50)
+}
+```
+Actually there are several ways for model selection with transformed variables. Such as, mice package supports a special built-in method, called passive imputation(mentioned in the lecture notes). Below we see that variables population, revenue and density do not provide improvement in the model(not having significance).
+
+```{r}
+modelFit <- with(ny.df,lm(expenditure~ wealth+population+revenue+density+income+growth.rate))
+summary(modelFit)
+```
+```{r}
+ti <- rstudent(modelFit)
+qqnorm(ti)
+qqline(ti)
+```
+```{r}
+plot(density(ti))
+```
+```{r}
+shapiro.test(ti)
+```
+
+```{r}
+model <- lm(expenditure~., ny.df)
+forward.model <- ols_step_forward_p(model, penter = 0.1)
+forward.model
+```
+```{r}
+forward.model$model
+```
+```{r}
+backward.model <- ols_step_backward_p(model, prem = 0.1)
+backward.model
+```
+```{r}
+backward.model$model
+```
+
+```{r}
+stepwise.model <- ols_step_both_p(model, pent=0.05, prem=0.1)
+stepwise.model
+```
+```{r}
+stepwise.model$model
+```
+The best model we picked according to above algorithms:
+
+```{r}
+model <- lm(expenditure~ wealth+income+growth.rate, data = ny.df)
+summary(model)
+```
+By looking at Adjusted R Squared Values, the 58.95% of the variability of psa can be explained by the predictors.
+
+```{r}
+plot(model)
+```
+
+```{r}
+ti <- rstudent(model)
+shapiro.test(ti)
+```
+
+
+## Applying Validation set approach (80% training, 20% testing)
+
+```{r}
+set.seed(123)
+random_sample <- createDataPartition(ny.df$expenditure, p = 0.8, list = FALSE)
+training_dataset  <-ny.df[random_sample, ]
+testing_dataset <- ny.df[-random_sample, ]
+dim_of_dataset=dim(ny.df)
+dim_of_train=dim(training_dataset)
+dim_of_test=dim(testing_dataset)
+cbind(dim_of_dataset,dim_of_train,dim_of_test)
+```
+```{r}
+fit <- lm(expenditure ~., data = training_dataset)
+summary(fit)
+```
+```{r}
+pred <- fit %>%  predict(testing_dataset)
+pred
+```
+```{r}
+metrics<-data.frame(RMSE = RMSE(pred, testing_dataset$expenditure),
+                    Rsquared = R2(pred, testing_dataset$expenditure),
+                    MAE = MAE(pred, testing_dataset$expenditure))
+metrics
+```
+
+```{r}
+ti <- rstudent(model)
+shapiro.test(ti)
+```
+
+
+```{r}
+ny.df2 <- (ny.df[,c("expenditure", "wealth", "income","growth.rate")])
+```
+
+```{r}
+set.seed(123)
+random_sample <- createDataPartition(ny.df2$expenditure, p = 0.8, list = FALSE)
+training_dataset  <-ny.df2[random_sample, ]
+testing_dataset <- ny.df2[-random_sample, ]
+dim_of_dataset=dim(ny.df2)
+dim_of_train=dim(training_dataset)
+dim_of_test=dim(testing_dataset)
+cbind(dim_of_dataset,dim_of_train,dim_of_test)
+```
+
+```{r}
+fit <- lm(expenditure ~., data = training_dataset)
+summary(fit)
+```
+```{r}
+ti <- rstudent(model)
+shapiro.test(ti)
+```
+
+```{r}
+pred <- fit %>%  predict(testing_dataset)
+pred
+```
+```{r}
+metrics<-data.frame(RMSE = RMSE(pred, testing_dataset$expenditure),
+                    Rsquared = R2(pred, testing_dataset$expenditure),
+                    MAE = MAE(pred, testing_dataset$expenditure))
+metrics
+```
+
+```{r}
+par(mfrow = c(2, 2))
+plot(model)
+```
+
+```{r}
+sum(cooks.distance(model)>1)
+```
+
+
+
+## Model Adequacy Checks
+
+"Possible problems:
+
+•	 Regression function can be wrong – missing important predictors, or nonlinear relation.
+
+•	 Assumptions about the errors can be wrong.
+
+•	 Outliers or influential observations
+
+
+Assumptions
+
+•	 Relationship between response and regressors is linear(at least approximately).
+
+•	 Error term, ε has zero mean
+
+•	 Error term, ε has constant variance
+
+•	 Errors are uncorrelated
+
+•	 Errors are normally distributed(required for tests and intervals)" (Stat363 Lecture Notes)
+
+
+
+There seems to be a problem with normality. By conducting a Shapiro-Wilk test several times on different transformed data sets p-value we got was always less than 0.05, therefore we  reject the null hypothesis and conclude that the residuals are not normally distributed. We can also evaluate the assumption of normality by looking at the Normal Q-Q plot of the residuals for each trial, by doing this we found out that some of the residuals do not lie along the 45° line on the Q-Q plot and we have some outliers. Hence we can assume again that the normality of the residuals is questionable. In addition, we determined 2 influential points based on Cook’s D. If we examine the residuals versus fitted plot, error term has non constant variance. To sum up, the assumptions given above for linear regression are not satisfied and we can not use linear regression model for this data set due to the fact that the relationship between response and the regressors does not linearly make sense. However, I only learned about linear regression analysis for now and for this data set, I can determine that the linear model does not provide an adequate fit by checking the residual plots, nothing further. Our future work for this analysis should be searching for various form of regression techniques and fit a model using the most appropriate one.
+  
+  
+  
+  
+  
+  
+  
+  
